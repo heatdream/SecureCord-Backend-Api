@@ -10,7 +10,7 @@ on:
 env:
   NODE_VERSION: 16.x
   DOCKER_PLATFORMS: linux/amd64
-  IMAGE_NAME: ghcr.io/heatdream/${{ github.repository }}
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   build-and-push-image:
