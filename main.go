@@ -1,48 +1,35 @@
 package main
 
 import (
-	i "ShelterChatBackend/Api/internal"
-	"ShelterChatBackend/Api/database"
-	"context"
+	_ "github.com/lib/pq"
+
+	"ShelterChatBackend/Api/api"
+	db "ShelterChatBackend/Api/db/sqlc"
+	"ShelterChatBackend/Api/util"
+	"database/sql"
 	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"time"
 )
 
 func main() {
-	database.SetupDatabase()
-	handler := i.NewRouter()
-
-	port := os.Getenv("API_PORT")
-
-	if port == "" {
-		port = "8808"
-		log.Printf("Port auf Default gesetzt: %s\n", port)
+	config, err := util.LoadConfig(".")
+	if err != nil {
+		log.Fatal("cannot load config: ", err)
 	}
 
-	srv := &http.Server{
-		Addr:         ":" + port,
-		Handler:      handler,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
+	conn, err := sql.Open(config.DBDriver, config.DBSource)
+	if err != nil {
+		log.Fatal("cannot connect to db:", err)
 	}
-	
-	go func() {
-		log.Println("ShelterChat Api gestartet")
-		srv.ListenAndServe()
-	}()
 
-	c := make(chan os.Signal, 1)
+	store := db.NewStore(conn)
+	server, err := api.NewSever(config, &store)
 
-	signal.Notify(c, os.Interrupt)
-	<-c
+	if err != nil {
+		log.Fatal("cannot start server:", err)
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	srv.Shutdown(ctx)
-
+	err = server.Start(config.ServerAddress)
+	if err != nil {
+		log.Fatal("cannot start server:", err)
+	}
 }
